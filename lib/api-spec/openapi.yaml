@@ -1,0 +1,816 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Demo account access
+  - name: markets
+    description: Simulated market data
+  - name: trading
+    description: Paper trading operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/auth/register:
+    post:
+      operationId: registerTrader
+      tags: [auth]
+      summary: Create a demo trading account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid account details
+  /v1/auth/login:
+    post:
+      operationId: loginTrader
+      tags: [auth]
+      summary: Sign in to a demo trading account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+  /v1/auth/me:
+    get:
+      operationId: getTraderProfile
+      tags: [auth]
+      summary: Return the signed-in demo account
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraderProfile"
+  /v1/markets:
+    get:
+      operationId: getMarkets
+      tags: [markets]
+      summary: List simulated instruments and current prices
+      responses:
+        "200":
+          description: Market snapshot
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Market"
+  /v1/markets/candles:
+    get:
+      operationId: getCandles
+      tags: [markets]
+      summary: Return chart candles for an instrument and interval
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d]
+      responses:
+        "200":
+          description: OHLCV candle data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candle"
+  /v1/markets/orderbook:
+    get:
+      operationId: getOrderBook
+      tags: [markets]
+      summary: Return simulated bid and ask depth
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order book depth
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderBook"
+  /v1/trader/snapshot:
+    get:
+      operationId: getTraderSnapshot
+      tags: [trading]
+      summary: Return wallet, open positions, pending orders, and recent history
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current trading account snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraderSnapshot"
+  /v1/wallet/demo-funds:
+    post:
+      operationId: addDemoFunds
+      tags: [trading]
+      summary: Add simulated funds to the demo wallet
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoFundingInput"
+      responses:
+        "200":
+          description: Updated demo wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+        "400":
+          description: Invalid demo funding amount
+  /v1/orders:
+    post:
+      operationId: createOrder
+      tags: [trading]
+      summary: Open a simulated position or create a pending limit order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Position or pending order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order
+        "409":
+          description: Insufficient available demo balance
+  /v1/orders/create:
+    post:
+      operationId: createOrderAtExplicitPath
+      tags: [trading]
+      summary: Open a simulated position or create a pending limit order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Position or pending order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order
+        "409":
+          description: Insufficient available demo balance
+  /v1/orders/close:
+    post:
+      operationId: closeOrderAtExplicitPath
+      tags: [trading]
+      summary: Close an open simulated position by order identifier
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloseOrderInput"
+      responses:
+        "200":
+          description: Position closed and demo balance updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Position not found
+  /v1/orders/{orderId}/close:
+    post:
+      operationId: closeOrder
+      tags: [trading]
+      summary: Close an open simulated position at the current market price
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Position closed and demo balance updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Position not found
+  /v1/orders/{orderId}/cancel:
+    post:
+      operationId: cancelOrder
+      tags: [trading]
+      summary: Cancel a pending simulated limit order
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pending order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Pending order not found
+  /v1/blog/posts:
+    get:
+      operationId: getBlogPosts
+      tags: [blog]
+      summary: List published articles
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema: { type: string }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Published articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BlogPost" }
+  /v1/blog/posts/{slug}:
+    get:
+      operationId: getBlogPost
+      tags: [blog]
+      summary: Read a published article by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Published article
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlogPost" }
+        "404":
+          description: Article not found
+  /v1/admin/me:
+    get:
+      operationId: getAdminProfile
+      tags: [admin]
+      summary: Verify administrator access
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Authorized administrator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminProfile" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/summary:
+    get:
+      operationId: getAdminSummary
+      tags: [admin]
+      summary: Read platform administration metrics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSummary" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/posts:
+    get:
+      operationId: getAdminPosts
+      tags: [admin]
+      summary: List all blog posts for editing
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BlogPost" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+    post:
+      operationId: createBlogPost
+      tags: [admin]
+      summary: Create a blog post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BlogPostInput" }
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlogPost" }
+        "400": { description: Invalid article }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/posts/{postId}:
+    patch:
+      operationId: updateBlogPost
+      tags: [admin]
+      summary: Update a blog post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BlogPostUpdate" }
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BlogPost" }
+        "400": { description: Invalid article }
+        "404": { description: Article not found }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+    delete:
+      operationId: deleteBlogPost
+      tags: [admin]
+      summary: Delete a blog post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Article deleted }
+        "404": { description: Article not found }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/settings:
+    get:
+      operationId: getAdminSettings
+      tags: [admin]
+      summary: List platform settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformSetting" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/settings/{key}:
+    put:
+      operationId: updateAdminSetting
+      tags: [admin]
+      summary: Save a platform setting
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformSettingInput" }
+      responses:
+        "200":
+          description: Setting saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSetting" }
+        "400": { description: Invalid setting }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: Search demo accounts and balances
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Demo accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminUser" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+  /v1/admin/users/{userId}/ledger:
+    get:
+      operationId: getAdminUserLedger
+      tags: [admin]
+      summary: Read a demo account ledger
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Ledger entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminLedgerEntry" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+        "404": { description: Account not found }
+    post:
+      operationId: adjustAdminUserLedger
+      tags: [admin]
+      summary: Adjust a demo wallet with an audited ledger entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LedgerAdjustmentInput" }
+      responses:
+        "200":
+          description: Balance and ledger entry updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LedgerAdjustmentResult" }
+        "400": { description: Invalid adjustment }
+        "404": { description: Account not found }
+        "409": { description: Locked funds exceed the new balance }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator role required }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    RegisterInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 10
+          maxLength: 72
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 72
+    Trader:
+      type: object
+      required: [id, email, createdAt]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+    AuthSession:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user: { $ref: "#/components/schemas/Trader" }
+    TraderProfile:
+      type: object
+      required: [user, wallet]
+      properties:
+        user: { $ref: "#/components/schemas/Trader" }
+        wallet: { $ref: "#/components/schemas/Wallet" }
+    Wallet:
+      type: object
+      required: [currency, balance, frozenBalance]
+      properties:
+        currency: { type: string }
+        balance: { type: number }
+        frozenBalance: { type: number }
+    Market:
+      type: object
+      required: [symbol, name, category, price, change24h, high24h, low24h, volume, bid, ask]
+      properties:
+        symbol: { type: string }
+        name: { type: string }
+        category: { type: string, enum: [Crypto, Forex, Commodities, Indices] }
+        price: { type: number }
+        change24h: { type: number }
+        high24h: { type: number }
+        low24h: { type: number }
+        volume: { type: number }
+        bid: { type: number }
+        ask: { type: number }
+    Candle:
+      type: object
+      required: [time, open, high, low, close, volume]
+      properties:
+        time: { type: integer }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        volume: { type: number }
+    DepthLevel:
+      type: object
+      required: [price, amount, total]
+      properties:
+        price: { type: number }
+        amount: { type: number }
+        total: { type: number }
+    OrderBook:
+      type: object
+      required: [symbol, bids, asks, spread]
+      properties:
+        symbol: { type: string }
+        bids:
+          type: array
+          items: { $ref: "#/components/schemas/DepthLevel" }
+        asks:
+          type: array
+          items: { $ref: "#/components/schemas/DepthLevel" }
+        spread: { type: number }
+    OrderInput:
+      type: object
+      required: [symbol, side, type, amount, leverage]
+      properties:
+        symbol: { type: string }
+        side: { type: string, enum: [BUY, SELL] }
+        type: { type: string, enum: [MARKET, LIMIT] }
+        amount: { type: number, exclusiveMinimum: 0 }
+        leverage: { type: integer, minimum: 1, maximum: 100 }
+        limitPrice: { type: ["number", "null"] }
+        stopLoss: { type: ["number", "null"] }
+        takeProfit: { type: ["number", "null"] }
+    CloseOrderInput:
+      type: object
+      required: [orderId]
+      properties:
+        orderId: { type: string }
+    DemoFundingInput:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+    Order:
+      type: object
+      required: [id, symbol, side, type, status, amount, leverage, entryPrice, margin, unrealizedPnL, createdAt]
+      properties:
+        id: { type: string }
+        symbol: { type: string }
+        side: { type: string, enum: [BUY, SELL] }
+        type: { type: string, enum: [MARKET, LIMIT] }
+        status: { type: string, enum: [OPEN, PENDING, FILLED, CANCELLED, CLOSED] }
+        amount: { type: number }
+        leverage: { type: integer }
+        entryPrice: { type: number }
+        closePrice: { type: ["number", "null"] }
+        margin: { type: number }
+        stopLoss: { type: ["number", "null"] }
+        takeProfit: { type: ["number", "null"] }
+        liquidationPx: { type: ["number", "null"] }
+        realizedPnL: { type: ["number", "null"] }
+        unrealizedPnL: { type: number }
+        createdAt: { type: string, format: date-time }
+        closedAt: { type: ["string", "null"], format: date-time }
+    TraderSnapshot:
+      type: object
+      required: [wallet, positions, pendingOrders, history]
+      properties:
+        wallet: { $ref: "#/components/schemas/Wallet" }
+        positions:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+        pendingOrders:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+    BlogPost:
+      type: object
+      required: [id, slug, title, excerpt, body, category, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        excerpt: { type: string }
+        body: { type: string }
+        category: { type: string }
+        status: { type: string, enum: [DRAFT, PUBLISHED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        publishedAt: { type: ["string", "null"], format: date-time }
+    BlogPostInput:
+      type: object
+      required: [slug, title, excerpt, body, category, status]
+      properties:
+        slug: { type: string, minLength: 1, maxLength: 180, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+        title: { type: string, minLength: 1, maxLength: 180 }
+        excerpt: { type: string, maxLength: 320 }
+        body: { type: string }
+        category: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, enum: [DRAFT, PUBLISHED] }
+    BlogPostUpdate:
+      type: object
+      properties:
+        slug: { type: string, minLength: 1, maxLength: 180, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+        title: { type: string, minLength: 1, maxLength: 180 }
+        excerpt: { type: string, maxLength: 320 }
+        body: { type: string }
+        category: { type: string, minLength: 1, maxLength: 64 }
+        status: { type: string, enum: [DRAFT, PUBLISHED] }
+    AdminProfile:
+      type: object
+      required: [id, email, role]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { type: string, enum: [ADMIN] }
+    AdminSummary:
+      type: object
+      required: [users, posts, publishedPosts, demoBalance]
+      properties:
+        users: { type: integer }
+        posts: { type: integer }
+        publishedPosts: { type: integer }
+        demoBalance: { type: number }
+    PlatformSetting:
+      type: object
+      required: [key, value, updatedAt]
+      properties:
+        key: { type: string }
+        value: { type: string }
+        updatedAt: { type: string, format: date-time }
+    PlatformSettingInput:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string, maxLength: 2000 }
+    AdminUser:
+      type: object
+      required: [id, email, role, createdAt, currency, balance, frozenBalance]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { type: string, enum: [USER, ADMIN] }
+        createdAt: { type: string, format: date-time }
+        currency: { type: string }
+        balance: { type: number }
+        frozenBalance: { type: number }
+    AdminLedgerEntry:
+      type: object
+      required: [id, type, amount, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        amount: { type: number }
+        status: { type: string }
+        reference: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    LedgerAdjustmentInput:
+      type: object
+      required: [amount, direction, reason]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        reason: { type: string, minLength: 3, maxLength: 100 }
+    LedgerAdjustmentResult:
+      type: object
+      required: [wallet, entry]
+      properties:
+        wallet: { $ref: "#/components/schemas/Wallet" }
+        entry: { $ref: "#/components/schemas/AdminLedgerEntry" }
+

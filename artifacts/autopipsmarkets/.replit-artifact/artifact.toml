@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "autopipsmarkets"
+description = "A dark, multi-asset paper-trading terminal for crypto, forex, and commodities, with simulated live prices, margin-aware positions, and a persistent demo wallet."
+version = "1.0.0"
+id = "artifacts/autopipsmarkets"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18470
+
+[services.development]
+run = "pnpm --filter @workspace/autopipsmarkets run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/autopipsmarkets", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/autopipsmarkets/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18470"
+BASE_PATH = "/"
